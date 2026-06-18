@@ -1,0 +1,86 @@
+package com.andycknight.demo;
+
+import com.andycknight.demo.records.CreateRecord;
+import com.andycknight.demo.records.Greeting;
+import com.andycknight.demo.records.PlayRecord;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import java.util.concurrent.atomic.AtomicLong;
+
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.server.ResponseStatusException;
+
+@RestController
+public class HangmanController {
+
+    private static final String template = "Hello, %s!";
+    private final AtomicLong counter = new AtomicLong();
+
+    private final HangmanWordRepository repository;
+    public HangmanController(HangmanWordRepository repository) {
+        this.repository = repository;
+    }
+
+    @GetMapping("/hello")
+    public String hello() {
+        return "Hello from Spring Boot 123456789";
+    }
+
+    @GetMapping("/greeting")
+    public Greeting greeting(@RequestParam(defaultValue = "World") String name) {
+        return new Greeting(counter.incrementAndGet(), template.formatted(name));
+    }
+
+    @GetMapping("/create")
+    public CreateRecord create(@RequestParam(defaultValue = "example") String word) {
+        if(! word.matches("[a-z ]+")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "word can only be lowercase letters and spaces");
+        }
+
+        HangmanWord hangmanWord = new HangmanWord(word);
+        repository.save(hangmanWord);
+
+        return new CreateRecord(hangmanWord.getWord(), hangmanWord.getGameKey());
+    }
+
+    @GetMapping("/play")
+    public PlayRecord play(
+            @RequestParam(defaultValue = "") String key,
+            @RequestParam(defaultValue = "") String guess,
+            @RequestParam(defaultValue = "") String reset
+    ) {
+        HangmanWord hangmanWord = repository.findByGameKey(key)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown key"));
+
+        String message = null;
+
+        if(guess.isEmpty()) {
+            message = "put ?guess=x on the end of the URL above to guess the letter X";
+        } else if(guess.length() > 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "guess must be one letter");
+        } else if( ! guess.matches("[a-z]") ) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "guess must be a lowercase letter");
+        } else {
+            hangmanWord.guessLetter(guess.charAt(0));
+            repository.save(hangmanWord);
+        }
+
+        Integer attemptsLeft = null;
+        if(hangmanWord.attemptsLeft() <= 4) {
+            attemptsLeft = hangmanWord.attemptsLeft();
+        }
+
+        return new PlayRecord(
+                hangmanWord.getWordSoFar(),
+                hangmanWord.getWordSoFar()
+                        .replace("-", "_ ")
+                        .replaceAll("([a-z])", "$1 ")
+                        .trim(),
+                message,
+                hangmanWord.getWrongLetters(),
+                attemptsLeft,
+                null
+        );
+    }
+}
