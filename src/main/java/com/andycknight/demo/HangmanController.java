@@ -1,6 +1,7 @@
 package com.andycknight.demo;
 
 import com.andycknight.demo.records.CreateRecord;
+import com.andycknight.demo.records.HomeRecord;
 import com.andycknight.demo.records.PlayRecord;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,6 +16,11 @@ public class HangmanController {
     private final HangmanWordRepository repository;
     public HangmanController(HangmanWordRepository repository) {
         this.repository = repository;
+    }
+
+    @GetMapping("/")
+    public HomeRecord home() {
+        return new HomeRecord("Hello world. To get started, you'll need to create a word");
     }
 
     @GetMapping("/create")
@@ -43,6 +49,11 @@ public class HangmanController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown key"));
 
         String message = null;
+
+        if(reset.equals("1")) {
+            hangmanWord.reset();
+            repository.save(hangmanWord);
+        }
 
         if(guess.isEmpty()) {
             message = "put ?guess=x on the end of the URL above to guess the letter X";

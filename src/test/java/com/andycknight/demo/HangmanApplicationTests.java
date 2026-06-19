@@ -102,4 +102,86 @@ class HangmanApplicationTests {
                 .extracting(HangmanWord::getWrongLetters)
                 .isEqualTo("");
     }
+
+    @Test
+    void playDoesNotGuessLetterWhenAlreadyHadTooManyGuesses() throws Exception {
+        HangmanWord hangmanWord = new HangmanWord("foo bar");
+        hangmanWord.guessLetter('x');
+        hangmanWord.guessLetter('y');
+        hangmanWord.guessLetter('c');
+        hangmanWord.guessLetter('d');
+        hangmanWord.guessLetter('e');
+        hangmanWord.guessLetter('z');
+        hangmanWord.guessLetter('g');
+        hangmanWord.guessLetter('h');
+        repository.save(hangmanWord);
+
+        HangmanWord anotherHangmanWord = new HangmanWord("another word");
+        repository.save(anotherHangmanWord);
+
+        mockMvc.perform(
+                get("/play")
+                        .param("key", hangmanWord.getGameKey())
+                        .param("guess", "f")
+        ).andExpect(status().isOk());
+
+        assertThat(repository.findByGameKey(hangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWordSoFar)
+                .isEqualTo("--- ---");
+
+        assertThat(repository.findByGameKey(hangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWrongLetters)
+                .isEqualTo("xycdezgh");
+
+        assertThat(repository.findByGameKey(anotherHangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWordSoFar)
+                .isEqualTo("------- ----");
+
+        assertThat(repository.findByGameKey(anotherHangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWrongLetters)
+                .isEqualTo("");
+    }
+
+    @Test
+    void playWithReset1ResetsTheGuessesSoFar() throws Exception {
+        HangmanWord hangmanWord = new HangmanWord("foo bar");
+        hangmanWord.guessLetter('a');
+        hangmanWord.guessLetter('b');
+        hangmanWord.guessLetter('c');
+        hangmanWord.guessLetter('d');
+        repository.save(hangmanWord);
+
+        HangmanWord anotherHangmanWord = new HangmanWord("another word");
+        repository.save(anotherHangmanWord);
+
+        mockMvc.perform(
+                get("/play")
+                        .param("key", hangmanWord.getGameKey())
+                        .param("reset", "1")
+        ).andExpect(status().isOk());
+
+        assertThat(repository.findByGameKey(hangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWordSoFar)
+                .isEqualTo("--- ---");
+
+        assertThat(repository.findByGameKey(hangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWrongLetters)
+                .isEqualTo("");
+
+        assertThat(repository.findByGameKey(anotherHangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWordSoFar)
+                .isEqualTo("------- ----");
+
+        assertThat(repository.findByGameKey(anotherHangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWrongLetters)
+                .isEqualTo("");
+    }
 }

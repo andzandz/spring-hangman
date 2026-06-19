@@ -91,6 +91,12 @@ public class HangmanWord
         }
     }
 
+    public void reset()
+    {
+        this.wordSoFar = word.replaceAll("[a-z]", "-");
+        this.wrongLetters = "";
+    }
+
     public int attemptsLeft()
     {
         return 8 - this.wrongLetters.length();
