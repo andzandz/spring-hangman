@@ -8,6 +8,6 @@ public record PlayRecord(
         String word_so_far_spaced,
         String message,
         String wrong_letters,
-        Integer attempts_left,
-        String man
+        String[] man,
+        Integer attempts_left
 ) { }

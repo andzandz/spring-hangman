@@ -244,6 +244,17 @@ class HangmanApplicationTests {
         HangmanWord anotherHangmanWord = new HangmanWord("another word");
         repository.save(anotherHangmanWord);
 
+        String[] expectedMan = {
+                " ____     ",
+                "|    |    ",
+                "|    o    ",
+                "|   ~|~   ",
+                "|    |    ",
+                "|   /\\    ",
+                "|         ",
+                "=========="
+        };
+
         mockMvc.perform(
                 get("/play")
                         .param("key", hangmanWord.getGameKey())
@@ -251,7 +262,15 @@ class HangmanApplicationTests {
         ).andExpect(status().isOk())
                 .andExpect(jsonPath("$.word_so_far").value("--- ---"))
                 .andExpect(jsonPath("$.word_so_far_spaced").value("_ _ _  _ _ _"))
-                .andExpect(jsonPath("$.wrong_letters").value("xycdezgh"));
+                .andExpect(jsonPath("$.wrong_letters").value("xycdezgh"))
+                .andExpect(jsonPath("$.man[0]").value(expectedMan[0]))
+                .andExpect(jsonPath("$.man[1]").value(expectedMan[1]))
+                .andExpect(jsonPath("$.man[2]").value(expectedMan[2]))
+                .andExpect(jsonPath("$.man[3]").value(expectedMan[3]))
+                .andExpect(jsonPath("$.man[4]").value(expectedMan[4]))
+                .andExpect(jsonPath("$.man[5]").value(expectedMan[5]))
+                .andExpect(jsonPath("$.man[6]").value(expectedMan[6]))
+                .andExpect(jsonPath("$.man[7]").value(expectedMan[7]));
 
         assertThat(repository.findByGameKey(hangmanWord.getGameKey()))
                 .get()

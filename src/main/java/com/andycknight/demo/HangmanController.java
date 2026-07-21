@@ -25,6 +25,17 @@ import com.google.zxing.client.j2se.MatrixToImageWriter;
 @RestController
 public class HangmanController {
 
+    String[] allAsciiMen = {
+            "                               ____      ____      ____      ____      ____      ____     ",
+            "                    |         |         |    |    |    |    |    |    |    |    |    |    ",
+            "                    |         |         |         |    o    |    o    |    o    |    o    ",
+            "                    |         |         |         |         |    |    |   ~|~   |   ~|~   ",
+            "                    |         |         |         |         |    |    |    |    |    |    ",
+            "                    |         |         |         |         |         |         |   /\\    ",
+            "                    |         |         |         |         |         |         |         ",
+            "          ================================================================================"
+    };
+
     private final HangmanWordRepository repository;
     public HangmanController(HangmanWordRepository repository) {
         this.repository = repository;
@@ -124,9 +135,19 @@ public class HangmanController {
             repository.save(hangmanWord);
         }
 
-        Integer attemptsLeft = null;
-        if(hangmanWord.attemptsLeft() <= 4) {
-            attemptsLeft = hangmanWord.attemptsLeft();
+        String[] asciiMan = null;
+        int manIndex = 8 - hangmanWord.attemptsLeft();
+        if(manIndex >= 1) {
+            asciiMan = new String[] {
+                    allAsciiMen[0].substring(manIndex*10, (manIndex+1)*10),
+                    allAsciiMen[1].substring(manIndex*10, (manIndex+1)*10),
+                    allAsciiMen[2].substring(manIndex*10, (manIndex+1)*10),
+                    allAsciiMen[3].substring(manIndex*10, (manIndex+1)*10),
+                    allAsciiMen[4].substring(manIndex*10, (manIndex+1)*10),
+                    allAsciiMen[5].substring(manIndex*10, (manIndex+1)*10),
+                    allAsciiMen[6].substring(manIndex*10, (manIndex+1)*10),
+                    allAsciiMen[7].substring(manIndex*10, (manIndex+1)*10),
+            };
         }
 
         return ResponseEntity.ok(
@@ -138,8 +159,8 @@ public class HangmanController {
                         .trim(),
                 message,
                 hangmanWord.getWrongLetters(),
-                attemptsLeft,
-                null
+                asciiMan,
+                hangmanWord.attemptsLeft() == 0 ? 0 : null
             )
         );
     }
