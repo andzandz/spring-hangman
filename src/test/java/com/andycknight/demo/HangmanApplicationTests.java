@@ -10,6 +10,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+
 @SpringBootTest
 @AutoConfigureMockMvc
 class HangmanApplicationTests {
@@ -24,13 +26,130 @@ class HangmanApplicationTests {
     }
 
     @Test
+    void createRejectsInvalidWord() throws Exception {
+        mockMvc.perform(get("/create").param("word", "ABC123"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("The word can only be lowercase letters and spaces"));
+    }
+
+    @Test
     void createPersistsWordCorrectly() throws Exception {
-        mockMvc.perform(get("/create").param("word", "foobar"))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/create")
+                        .param("word", "foobar"))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.word_so_far").value("------"));
 
         assertThat(repository.findAll())
                 .extracting(HangmanWord::getWord)
                 .contains("foobar");
+    }
+
+    @Test
+    void playRejectsInvalidKey() throws Exception {
+        HangmanWord hangmanWord = new HangmanWord("foo bar");
+        repository.save(hangmanWord);
+
+        HangmanWord anotherHangmanWord = new HangmanWord("another word");
+        repository.save(anotherHangmanWord);
+
+        mockMvc.perform(
+                get("/play")
+                        .param("key", "invalidkey")
+                        .param("guess", "b")
+        ).andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.error").value("key not found"));
+
+        assertThat(repository.findByGameKey(hangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWordSoFar)
+                .isEqualTo("--- ---");
+
+        assertThat(repository.findByGameKey(hangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWrongLetters)
+                .isEqualTo("");
+
+        assertThat(repository.findByGameKey(anotherHangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWordSoFar)
+                .isEqualTo("------- ----");
+
+        assertThat(repository.findByGameKey(anotherHangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWrongLetters)
+                .isEqualTo("");
+    }
+
+    @Test
+    void playRejectsMultipleLetterGuess() throws Exception {
+        HangmanWord hangmanWord = new HangmanWord("foo bar");
+        repository.save(hangmanWord);
+
+        HangmanWord anotherHangmanWord = new HangmanWord("another word");
+        repository.save(anotherHangmanWord);
+
+        mockMvc.perform(
+                        get("/play")
+                                .param("key", hangmanWord.getGameKey())
+                                .param("guess", "ab")
+                ).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("The guess must be one letter"));
+
+        assertThat(repository.findByGameKey(hangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWordSoFar)
+                .isEqualTo("--- ---");
+
+        assertThat(repository.findByGameKey(hangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWrongLetters)
+                .isEqualTo("");
+
+        assertThat(repository.findByGameKey(anotherHangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWordSoFar)
+                .isEqualTo("------- ----");
+
+        assertThat(repository.findByGameKey(anotherHangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWrongLetters)
+                .isEqualTo("");
+    }
+
+    @Test
+    void playRejectsUppercaseLetterGuess() throws Exception {
+        HangmanWord hangmanWord = new HangmanWord("foo bar");
+        repository.save(hangmanWord);
+
+        HangmanWord anotherHangmanWord = new HangmanWord("another word");
+        repository.save(anotherHangmanWord);
+
+        mockMvc.perform(
+                        get("/play")
+                                .param("key", hangmanWord.getGameKey())
+                                .param("guess", "A")
+                ).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("The guess must be a lowercase letter"));
+
+        assertThat(repository.findByGameKey(hangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWordSoFar)
+                .isEqualTo("--- ---");
+
+        assertThat(repository.findByGameKey(hangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWrongLetters)
+                .isEqualTo("");
+
+        assertThat(repository.findByGameKey(anotherHangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWordSoFar)
+                .isEqualTo("------- ----");
+
+        assertThat(repository.findByGameKey(anotherHangmanWord.getGameKey()))
+                .get()
+                .extracting(HangmanWord::getWrongLetters)
+                .isEqualTo("");
     }
 
     @Test
@@ -45,7 +164,10 @@ class HangmanApplicationTests {
                 get("/play")
                         .param("key", hangmanWord.getGameKey())
                         .param("guess", "b")
-        ).andExpect(status().isOk());
+        ).andExpect(status().isOk())
+                .andExpect(jsonPath("$.word_so_far").value("--- b--"))
+                .andExpect(jsonPath("$.word_so_far_spaced").value("_ _ _  b _ _"))
+                .andExpect(jsonPath("$.wrong_letters").value(""));
 
         assertThat(repository.findByGameKey(hangmanWord.getGameKey()))
                 .get()
@@ -80,7 +202,10 @@ class HangmanApplicationTests {
                 get("/play")
                         .param("key", hangmanWord.getGameKey())
                         .param("guess", "x")
-        ).andExpect(status().isOk());
+        ).andExpect(status().isOk())
+                .andExpect(jsonPath("$.word_so_far").value("--- ---"))
+                .andExpect(jsonPath("$.word_so_far_spaced").value("_ _ _  _ _ _"))
+                .andExpect(jsonPath("$.wrong_letters").value("x"));
 
         assertThat(repository.findByGameKey(hangmanWord.getGameKey()))
                 .get()
@@ -123,7 +248,10 @@ class HangmanApplicationTests {
                 get("/play")
                         .param("key", hangmanWord.getGameKey())
                         .param("guess", "f")
-        ).andExpect(status().isOk());
+        ).andExpect(status().isOk())
+                .andExpect(jsonPath("$.word_so_far").value("--- ---"))
+                .andExpect(jsonPath("$.word_so_far_spaced").value("_ _ _  _ _ _"))
+                .andExpect(jsonPath("$.wrong_letters").value("xycdezgh"));
 
         assertThat(repository.findByGameKey(hangmanWord.getGameKey()))
                 .get()
@@ -162,7 +290,10 @@ class HangmanApplicationTests {
                 get("/play")
                         .param("key", hangmanWord.getGameKey())
                         .param("reset", "1")
-        ).andExpect(status().isOk());
+        ).andExpect(status().isOk())
+                .andExpect(jsonPath("$.word_so_far").value("--- ---"))
+                .andExpect(jsonPath("$.word_so_far_spaced").value("_ _ _  _ _ _"))
+                .andExpect(jsonPath("$.wrong_letters").value(""));
 
         assertThat(repository.findByGameKey(hangmanWord.getGameKey()))
                 .get()
